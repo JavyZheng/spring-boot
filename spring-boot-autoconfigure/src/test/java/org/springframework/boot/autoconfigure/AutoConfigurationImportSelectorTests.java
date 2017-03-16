@@ -59,7 +59,7 @@ public class AutoConfigurationImportSelectorTests {
 
 	private final MockEnvironment environment = new MockEnvironment();
 
-	private List<AutoConfigurationImportFilter> filters = new ArrayList<AutoConfigurationImportFilter>();
+	private List<AutoConfigurationImportFilter> filters = new ArrayList<>();
 
 	@Rule
 	public ExpectedException expected = ExpectedException.none();
@@ -130,11 +130,15 @@ public class AutoConfigurationImportSelectorTests {
 		this.environment.setProperty("spring.autoconfigure.exclude",
 				FreeMarkerAutoConfiguration.class.getName() + ","
 						+ MustacheAutoConfiguration.class.getName());
-		String[] imports = selectImports(BasicEnableAutoConfiguration.class);
-		assertThat(imports).hasSize(getAutoConfigurationClassNames().size() - 2);
-		assertThat(this.importSelector.getLastEvent().getExclusions()).contains(
-				FreeMarkerAutoConfiguration.class.getName(),
-				MustacheAutoConfiguration.class.getName());
+		testSeveralPropertyExclusionsAreApplied();
+	}
+
+	@Test
+	public void severalPropertyExclusionsAreAppliedWithExtraSpaces() {
+		this.environment.setProperty("spring.autoconfigure.exclude",
+				FreeMarkerAutoConfiguration.class.getName() + " , "
+						+ MustacheAutoConfiguration.class.getName() + " ");
+		testSeveralPropertyExclusionsAreApplied();
 	}
 
 	@Test
@@ -143,6 +147,10 @@ public class AutoConfigurationImportSelectorTests {
 				FreeMarkerAutoConfiguration.class.getName());
 		this.environment.setProperty("spring.autoconfigure.exclude[1]",
 				MustacheAutoConfiguration.class.getName());
+		testSeveralPropertyExclusionsAreApplied();
+	}
+
+	private void testSeveralPropertyExclusionsAreApplied() {
 		String[] imports = selectImports(BasicEnableAutoConfiguration.class);
 		assertThat(imports).hasSize(getAutoConfigurationClassNames().size() - 2);
 		assertThat(this.importSelector.getLastEvent().getExclusions()).contains(
@@ -261,7 +269,7 @@ public class AutoConfigurationImportSelectorTests {
 	private static class TestAutoConfigurationImportFilter
 			implements AutoConfigurationImportFilter, BeanFactoryAware {
 
-		private final Set<String> nonMatching = new HashSet<String>();
+		private final Set<String> nonMatching = new HashSet<>();
 
 		private BeanFactory beanFactory;
 

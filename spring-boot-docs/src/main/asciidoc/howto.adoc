@@ -1669,6 +1669,11 @@ The dialect to use is also automatically detected based on the current `DataSour
 you can set `spring.jpa.database` yourself if you want to be explicit and bypass that
 check on startup.
 
+NOTE: Specifying a `database` leads to the configuration of a well-defined Hibernate
+dialect. Several databases have more than one `Dialect` and this may not suit your need.
+In that case, you can either set `spring.jpa.database` to `default` to let Hibernate figure
+things out or set the dialect using the `spring.jpa.database-platform` property.
+
 The most common options to set are:
 
 [indent=0,subs="verbatim,quotes,attributes"]
@@ -1989,6 +1994,12 @@ The master change log is by default read from `db/changelog/db.changelog-master.
 can be set using `liquibase.change-log`. In addition to YAML, Liquibase also supports
 JSON, XML, and SQL change log formats.
 
+By default Liquibase will autowire the (`@Primary`) `DataSource` in your context and use
+that for migrations. If you like to use a different `DataSource` you can create one and
+mark its `@Bean` as `@LiquibaseDataSource` - if you do that remember to create another one
+and mark it as `@Primary` if you want two data sources. Or you can use Liquibase's native
+`DataSource` by setting `liquibase.[url,user,password]` in external properties.
+
 See
 {sc-spring-boot-autoconfigure}/liquibase/LiquibaseProperties.{sc-ext}[`LiquibaseProperties`]
 for details of available settings like contexts, default schema etc.
@@ -2033,6 +2044,11 @@ your application defines, if any.
 
 [[howto-batch-applications]]
 == Batch applications
+
+NOTE: By default, batch applications require a `DataSource` to store job details. If you
+want to deviate from that, you'll need to implement `BatchConfigurer`, see
+{spring-batch-javadoc}/core/configuration/annotation/EnableBatchProcessing.html[The
+Javadoc of `@EnableBatchProcessing`] for more details.
 
 
 
@@ -2111,9 +2127,9 @@ Actuator HTTP endpoints are only available for Spring MVC-based applications. If
 to use Jersey and still use the actuator you will need to enable Spring MVC (by depending
 on `spring-boot-starter-web`, for example). By default, both Jersey and the Spring MVC
 dispatcher servlet are mapped to the same path (`/`). You will need to change the path for
-one of them (by configuring `server.servlet-path` for Spring MVC or
+one of them (by configuring `server.servlet.path` for Spring MVC or
 `spring.jersey.application-path` for Jersey). For example, if you add
-`server.servlet-path=/system` into `application.properties`, the actuator HTTP endpoints
+`server.servlet.path=/system` into `application.properties`, the actuator HTTP endpoints
 will be available under `/system`.
 
 
@@ -2225,6 +2241,13 @@ There are several options for hot reloading. The recommended approach is to use
 <<using-spring-boot.adoc#using-boot-devtools,`spring-boot-devtools`>> as it provides
 additional development-time features such as support for fast application restarts
 and LiveReload as well as sensible development-time configuration (e.g. template caching).
+Devtools works by monitoring the classpath for changes. This means that static resource
+changes must be "built" for the change to take affect. By default, this happens
+automatically in Eclipse when you save your changes. In IntelliJ IDEA, Make Project will
+trigger the necessary build. Due to the
+<<using-spring-boot.adoc#using-boot-devtools-restart-exclude, default restart
+exclusions>>, changes to static resources will not trigger a restart of your application.
+They will, however, trigger a live reload.
 
 Alternatively, running in an IDE (especially with debugging on) is a good way to do
 development (all modern IDEs allow reloading of static resources and usually also
@@ -2232,8 +2255,8 @@ hot-swapping of Java class changes).
 
 Finally, the <<build-tool-plugins.adoc#build-tool-plugins, Maven and Gradle plugins>> can
 be configured (see the `addResources` property) to support running from the command line
-with reloading of static files. You can use that with an external css/js compiler process
-if you are writing that code with higher level tools.
+with reloading of static files directly from source. You can use that with an external
+css/js compiler process if you are writing that code with higher level tools.
 
 
 
@@ -2448,7 +2471,7 @@ https://plugins.gradle.org/plugin/com.gorylenko.gradle-git-properties[`gradle-gi
 [source,groovy,indent=0]
 ----
 	plugins {
-		id "com.gorylenko.gradle-git-properties" version "1.4.6"
+		id "com.gorylenko.gradle-git-properties" version "1.4.17"
 	}
 ----
 
@@ -2944,9 +2967,9 @@ replacing those elements from the `web.xml` as follows:
   container as if it was a `<servlet/>` and `<servlet-mapping/>` in `web.xml`.
 * A `@Bean` of type `Filter` or `FilterRegistrationBean` behaves similarly (like a
   `<filter/>` and `<filter-mapping/>`.
-* An `ApplicationContext` in an XML file can be added to an `@Import` in your
-  `Application`. Or simple cases where annotation configuration is heavily used already
-  can be recreated in a few lines as `@Bean` definitions.
+* An `ApplicationContext` in an XML file can be added through an `@ImportResource` in
+  your `Application`. Or simple cases where annotation configuration is heavily used
+  already can be recreated in a few lines as `@Bean` definitions.
 
 Once the war is working we make it executable by adding a `main` method to our
 `Application`, e.g.

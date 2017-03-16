@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import ch.qos.logback.classic.BasicConfigurator;
@@ -506,7 +508,7 @@ public class ConfigFileApplicationListenerTests {
 		Collection<org.springframework.core.env.PropertySource<?>> sources = propertySource
 				.getSource();
 		assertThat(sources).hasSize(2);
-		List<String> names = new ArrayList<String>();
+		List<String> names = new ArrayList<>();
 		for (org.springframework.core.env.PropertySource<?> source : sources) {
 			if (source instanceof EnumerableCompositePropertySource) {
 				for (org.springframework.core.env.PropertySource<?> nested : ((EnumerableCompositePropertySource) source)
@@ -804,6 +806,29 @@ public class ConfigFileApplicationListenerTests {
 				.isFalse();
 	}
 
+	@Test
+	public void profileCanBeIncludedWithoutAnyBeingActive() throws Exception {
+		SpringApplication application = new SpringApplication(Config.class);
+		application.setWebApplicationType(WebApplicationType.NONE);
+		this.context = application.run("--spring.profiles.include=dev");
+		String property = this.context.getEnvironment().getProperty("my.property");
+		assertThat(property).isEqualTo("fromdevpropertiesfile");
+	}
+
+	@Test
+	public void activeProfilesCanBeConfiguredUsingPlaceholdersResolvedAgainstTheEnvironment()
+			throws Exception {
+		Map<String, Object> source = new HashMap<>();
+		source.put("activeProfile", "testPropertySource");
+		org.springframework.core.env.PropertySource<?> propertySource = new MapPropertySource(
+				"test", source);
+		this.environment.getPropertySources().addLast(propertySource);
+		this.initializer.setSearchNames("testactiveprofiles");
+		this.initializer.postProcessEnvironment(this.environment, this.application);
+		assertThat(this.environment.getActiveProfiles())
+				.containsExactly("testPropertySource");
+	}
+
 	private Condition<ConfigurableEnvironment> matchingPropertySource(
 			final String sourceName) {
 		return new Condition<ConfigurableEnvironment>(
@@ -886,7 +911,7 @@ public class ConfigFileApplicationListenerTests {
 
 		@Override
 		List<EnvironmentPostProcessor> loadPostProcessors() {
-			return new ArrayList<EnvironmentPostProcessor>(
+			return new ArrayList<>(
 					Arrays.asList(new LowestPrecedenceEnvironmentPostProcessor()));
 		}
 

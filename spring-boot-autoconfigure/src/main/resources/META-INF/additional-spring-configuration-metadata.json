@@ -89,6 +89,12 @@
     "defaultValue": "read-your-own-writes"
   },
   {
+    "name": "spring.data.cassandra.repositories.enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable Cassandra repositories.",
+    "defaultValue": true
+  },
+  {
     "name": "spring.data.couchbase.repositories.enabled",
     "type": "java.lang.Boolean",
     "description": "Enable Couchbase repositories.",
@@ -110,6 +116,12 @@
     "name": "spring.data.ldap.repositories.enabled",
     "type": "java.lang.Boolean",
     "description": "Enable LDAP repositories.",
+    "defaultValue": true
+  },
+  {
+    "name": "spring.data.mongodb.reactive-repositories.enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable Mongo reactive repositories.",
     "defaultValue": true
   },
   {
@@ -372,7 +384,7 @@
     ]
   },
   {
-    "name": "server.jsp-servlet.class-name",
+    "name": "server.servlet.jsp.class-name",
     "providers": [
       {
         "name": "class-reference",

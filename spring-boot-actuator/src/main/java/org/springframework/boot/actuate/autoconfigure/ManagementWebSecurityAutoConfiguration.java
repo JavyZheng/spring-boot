@@ -38,6 +38,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.autoconfigure.security.AuthenticationManagerConfiguration;
 import org.springframework.boot.autoconfigure.security.FallbackWebSecurityAutoConfiguration;
@@ -85,7 +86,7 @@ import org.springframework.util.StringUtils;
  * @author Andy Wilkinson
  */
 @Configuration
-@ConditionalOnWebApplication
+@ConditionalOnWebApplication(type = Type.SERVLET)
 @ConditionalOnClass({ EnableWebSecurity.class })
 @AutoConfigureAfter(SecurityAutoConfiguration.class)
 @AutoConfigureBefore(FallbackWebSecurityAutoConfiguration.class)
@@ -294,7 +295,7 @@ public class ManagementWebSecurityAutoConfiguration {
 				return NO_PATHS;
 			}
 			Set<? extends MvcEndpoint> endpoints = endpointHandlerMapping.getEndpoints();
-			Set<String> paths = new LinkedHashSet<String>(endpoints.size());
+			Set<String> paths = new LinkedHashSet<>(endpoints.size());
 			for (MvcEndpoint endpoint : endpoints) {
 				if (isIncluded(endpoint)) {
 					String path = endpointHandlerMapping.getPath(endpoint.getPath());
@@ -336,7 +337,7 @@ public class ManagementWebSecurityAutoConfiguration {
 			String path = management.getContextPath();
 			if (StringUtils.hasText(path)) {
 				AntPathRequestMatcher matcher = new AntPathRequestMatcher(
-						server.getPath(path) + "/**");
+						server.getServlet().getPath(path) + "/**");
 				return matcher;
 			}
 			// Match everything, including the sensitive and non-sensitive paths
@@ -360,10 +361,11 @@ public class ManagementWebSecurityAutoConfiguration {
 		private RequestMatcher createDelegate() {
 			ServerProperties server = this.contextResolver.getApplicationContext()
 					.getBean(ServerProperties.class);
-			List<RequestMatcher> matchers = new ArrayList<RequestMatcher>();
+			List<RequestMatcher> matchers = new ArrayList<>();
 			EndpointHandlerMapping endpointHandlerMapping = getRequiredEndpointHandlerMapping();
 			for (String path : this.endpointPaths.getPaths(endpointHandlerMapping)) {
-				matchers.add(new AntPathRequestMatcher(server.getPath(path)));
+				matchers.add(
+						new AntPathRequestMatcher(server.getServlet().getPath(path)));
 			}
 			return (matchers.isEmpty() ? MATCH_NONE : new OrRequestMatcher(matchers));
 		}

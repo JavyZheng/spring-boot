@@ -25,8 +25,6 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.FatalBeanException;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -41,22 +39,23 @@ import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.rest.RepositoryRestMvcAutoConfiguration;
 import org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.DispatcherServletAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.EmbeddedServletContainerAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.HttpMessageConvertersAutoConfiguration;
+import org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
-import org.springframework.boot.autoconfigure.web.WebMvcAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.bind.RelaxedPropertyResolver;
-import org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext;
-import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory;
-import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext;
 import org.springframework.boot.context.event.ApplicationFailedEvent;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.filter.ApplicationContextHeaderFilter;
+import org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext;
+import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
+import org.springframework.boot.web.servlet.filter.ApplicationContextHeaderFilter;
+import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEvent;
@@ -93,31 +92,24 @@ import org.springframework.web.servlet.DispatcherServlet;
  */
 @Configuration
 @ConditionalOnClass({ Servlet.class, DispatcherServlet.class })
-@ConditionalOnWebApplication
+@ConditionalOnWebApplication(type = Type.SERVLET)
 @EnableConfigurationProperties(ManagementServerProperties.class)
 @AutoConfigureAfter({ PropertyPlaceholderAutoConfiguration.class,
-		EmbeddedServletContainerAutoConfiguration.class, WebMvcAutoConfiguration.class,
+		ServletWebServerFactoryAutoConfiguration.class, WebMvcAutoConfiguration.class,
 		RepositoryRestMvcAutoConfiguration.class, HypermediaAutoConfiguration.class,
 		HttpMessageConvertersAutoConfiguration.class })
 public class EndpointWebMvcAutoConfiguration
-		implements ApplicationContextAware, BeanFactoryAware, SmartInitializingSingleton {
+		implements ApplicationContextAware, SmartInitializingSingleton {
 
 	private static final Log logger = LogFactory
 			.getLog(EndpointWebMvcAutoConfiguration.class);
 
 	private ApplicationContext applicationContext;
 
-	private BeanFactory beanFactory;
-
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext)
 			throws BeansException {
 		this.applicationContext = applicationContext;
-	}
-
-	@Override
-	public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-		this.beanFactory = beanFactory;
 	}
 
 	@Bean
@@ -146,13 +138,13 @@ public class EndpointWebMvcAutoConfiguration
 					.get(this.applicationContext.getEnvironment());
 		}
 		if (managementPort == ManagementServerPort.DIFFERENT) {
-			if (this.applicationContext instanceof EmbeddedWebApplicationContext
-					&& ((EmbeddedWebApplicationContext) this.applicationContext)
-							.getEmbeddedWebServer() != null) {
+			if (this.applicationContext instanceof ServletWebServerApplicationContext
+					&& ((ServletWebServerApplicationContext) this.applicationContext)
+							.getWebServer() != null) {
 				createChildManagementContext();
 			}
 			else {
-				logger.warn("Could not start embedded management container on "
+				logger.warn("Could not start management web server on "
 						+ "different port (management endpoints are still available "
 						+ "through JMX)");
 			}
@@ -174,31 +166,30 @@ public class EndpointWebMvcAutoConfiguration
 	}
 
 	private void createChildManagementContext() {
-		AnnotationConfigEmbeddedWebApplicationContext childContext = new AnnotationConfigEmbeddedWebApplicationContext();
+		AnnotationConfigServletWebServerApplicationContext childContext = new AnnotationConfigServletWebServerApplicationContext();
 		childContext.setParent(this.applicationContext);
 		childContext.setNamespace("management");
 		childContext.setId(this.applicationContext.getId() + ":management");
 		childContext.setClassLoader(this.applicationContext.getClassLoader());
 		childContext.register(EndpointWebMvcChildContextConfiguration.class,
 				PropertyPlaceholderAutoConfiguration.class,
-				EmbeddedServletContainerAutoConfiguration.class,
+				ServletWebServerFactoryAutoConfiguration.class,
 				DispatcherServletAutoConfiguration.class);
-		registerEmbeddedServletContainerFactory(childContext);
+		registerServletWebServerFactory(childContext);
 		CloseManagementContextListener.addIfPossible(this.applicationContext,
 				childContext);
 		childContext.refresh();
 		managementContextResolver().setApplicationContext(childContext);
 	}
 
-	private void registerEmbeddedServletContainerFactory(
-			AnnotationConfigEmbeddedWebApplicationContext childContext) {
+	private void registerServletWebServerFactory(
+			AnnotationConfigServletWebServerApplicationContext childContext) {
 		try {
 			ConfigurableListableBeanFactory beanFactory = childContext.getBeanFactory();
 			if (beanFactory instanceof BeanDefinitionRegistry) {
 				BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
-				registry.registerBeanDefinition("embeddedServletContainerFactory",
-						new RootBeanDefinition(
-								determineEmbeddedServletContainerFactoryClass()));
+				registry.registerBeanDefinition("ServletWebServerFactory",
+						new RootBeanDefinition(determineServletWebServerFactoryClass()));
 			}
 		}
 		catch (NoSuchBeanDefinitionException ex) {
@@ -206,17 +197,17 @@ public class EndpointWebMvcAutoConfiguration
 		}
 	}
 
-	private Class<?> determineEmbeddedServletContainerFactoryClass()
+	private Class<?> determineServletWebServerFactoryClass()
 			throws NoSuchBeanDefinitionException {
-		Class<?> servletContainerFactoryClass = this.applicationContext
-				.getBean(EmbeddedServletContainerFactory.class).getClass();
-		if (cannotBeInstantiated(servletContainerFactoryClass)) {
-			throw new FatalBeanException("EmbeddedServletContainerFactory implementation "
-					+ servletContainerFactoryClass.getName() + " cannot be instantiated. "
+		Class<?> factoryClass = this.applicationContext
+				.getBean(ServletWebServerFactory.class).getClass();
+		if (cannotBeInstantiated(factoryClass)) {
+			throw new FatalBeanException("ServletWebServerFactory implementation "
+					+ factoryClass.getName() + " cannot be instantiated. "
 					+ "To allow a separate management port to be used, a top-level class "
 					+ "or static inner class should be used instead");
 		}
-		return servletContainerFactoryClass;
+		return factoryClass;
 	}
 
 	private boolean cannotBeInstantiated(Class<?> clazz) {
@@ -338,8 +329,8 @@ public class EndpointWebMvcAutoConfiguration
 				return ConditionOutcome
 						.noMatch(message.because("non WebApplicationContext"));
 			}
-			ManagementServerPort port = ManagementServerPort.get(
-					context.getEnvironment());
+			ManagementServerPort port = ManagementServerPort
+					.get(context.getEnvironment());
 			if (port == ManagementServerPort.SAME) {
 				return ConditionOutcome.match(message.because("port is same"));
 			}

@@ -100,7 +100,7 @@ public class ConfigurationPropertiesReportEndpoint
 	}
 
 	private Map<String, Object> extract(ApplicationContext context, ObjectMapper mapper) {
-		Map<String, Object> result = new HashMap<String, Object>();
+		Map<String, Object> result = new HashMap<>();
 		ConfigurationBeanFactoryMetaData beanFactoryMetaData = getBeanFactoryMetaData(
 				context);
 		Map<String, Object> beans = getConfigurationPropertiesBeans(context,
@@ -108,7 +108,7 @@ public class ConfigurationPropertiesReportEndpoint
 		for (Map.Entry<String, Object> entry : beans.entrySet()) {
 			String beanName = entry.getKey();
 			Object bean = entry.getValue();
-			Map<String, Object> root = new HashMap<String, Object>();
+			Map<String, Object> root = new HashMap<>();
 			String prefix = extractPrefix(context, beanFactoryMetaData, beanName, bean);
 			root.put("prefix", prefix);
 			root.put("properties", sanitize(prefix, safeSerialize(mapper, bean, prefix)));
@@ -133,7 +133,7 @@ public class ConfigurationPropertiesReportEndpoint
 	private Map<String, Object> getConfigurationPropertiesBeans(
 			ApplicationContext context,
 			ConfigurationBeanFactoryMetaData beanFactoryMetaData) {
-		Map<String, Object> beans = new HashMap<String, Object>();
+		Map<String, Object> beans = new HashMap<>();
 		beans.putAll(context.getBeansWithAnnotation(ConfigurationProperties.class));
 		if (beanFactoryMetaData != null) {
 			beans.putAll(beanFactoryMetaData
@@ -154,13 +154,13 @@ public class ConfigurationPropertiesReportEndpoint
 			String prefix) {
 		try {
 			@SuppressWarnings("unchecked")
-			Map<String, Object> result = new HashMap<String, Object>(
+			Map<String, Object> result = new HashMap<>(
 					mapper.convertValue(bean, Map.class));
 			return result;
 		}
 		catch (Exception ex) {
-			return new HashMap<String, Object>(Collections.<String, Object>singletonMap(
-					"error", "Cannot serialize '" + prefix + "'"));
+			return new HashMap<>(Collections.<String, Object>singletonMap("error",
+					"Cannot serialize '" + prefix + "'"));
 		}
 	}
 
@@ -239,6 +239,9 @@ public class ConfigurationPropertiesReportEndpoint
 			if (value instanceof Map) {
 				map.put(key, sanitize(qualifiedKey, (Map<String, Object>) value));
 			}
+			else if (value instanceof List) {
+				map.put(key, sanitize(qualifiedKey, (List<Object>) value));
+			}
 			else {
 				value = this.sanitizer.sanitize(key, value);
 				value = this.sanitizer.sanitize(qualifiedKey, value);
@@ -246,6 +249,23 @@ public class ConfigurationPropertiesReportEndpoint
 			}
 		}
 		return map;
+	}
+
+	@SuppressWarnings("unchecked")
+	private List<Object> sanitize(String prefix, List<Object> list) {
+		List<Object> sanitized = new ArrayList<>();
+		for (Object item : list) {
+			if (item instanceof Map) {
+				sanitized.add(sanitize(prefix, (Map<String, Object>) item));
+			}
+			else if (item instanceof List) {
+				sanitized.add(sanitize(prefix, (List<Object>) item));
+			}
+			else {
+				sanitized.add(this.sanitizer.sanitize(prefix, item));
+			}
+		}
+		return sanitized;
 	}
 
 	/**
@@ -297,7 +317,7 @@ public class ConfigurationPropertiesReportEndpoint
 		@Override
 		public List<BeanPropertyWriter> changeProperties(SerializationConfig config,
 				BeanDescription beanDesc, List<BeanPropertyWriter> beanProperties) {
-			List<BeanPropertyWriter> result = new ArrayList<BeanPropertyWriter>();
+			List<BeanPropertyWriter> result = new ArrayList<>();
 			for (BeanPropertyWriter writer : beanProperties) {
 				boolean readable = isReadable(beanDesc, writer);
 				if (readable) {

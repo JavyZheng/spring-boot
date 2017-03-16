@@ -107,8 +107,17 @@ public enum DatabaseDriver {
 	/**
 	 * SQL Server.
 	 */
-	SQLSERVER("SQL SERVER", "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-			"com.microsoft.sqlserver.jdbc.SQLServerXADataSource", "SELECT 1"),
+	SQLSERVER("Microsoft SQL Server", "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+			"com.microsoft.sqlserver.jdbc.SQLServerXADataSource", "SELECT 1") {
+
+		@Override
+		protected boolean matchProductName(String productName) {
+			return super.matchProductName(productName)
+					|| "SQL SERVER".equalsIgnoreCase(productName);
+
+		}
+
+	},
 
 	/**
 	 * Firebird.

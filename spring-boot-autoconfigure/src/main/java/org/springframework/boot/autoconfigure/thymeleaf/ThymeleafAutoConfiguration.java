@@ -42,9 +42,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
 import org.springframework.boot.autoconfigure.template.TemplateLocation;
 import org.springframework.boot.autoconfigure.web.ConditionalOnEnabledResourceChain;
-import org.springframework.boot.autoconfigure.web.WebMvcAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -123,7 +124,7 @@ public class ThymeleafAutoConfiguration {
 
 	@Configuration
 	@ConditionalOnClass({ Servlet.class })
-	@ConditionalOnWebApplication
+	@ConditionalOnWebApplication(type = Type.SERVLET)
 	static class ThymeleafViewResolverConfiguration {
 
 		private final ThymeleafProperties properties;
@@ -158,7 +159,7 @@ public class ThymeleafAutoConfiguration {
 			if (type.getCharset() != null) {
 				return type.toString();
 			}
-			LinkedHashMap<String, String> parameters = new LinkedHashMap<String, String>();
+			LinkedHashMap<String, String> parameters = new LinkedHashMap<>();
 			parameters.put("charset", charset);
 			parameters.putAll(type.getParameters());
 			return new MimeType(type, parameters).toString();
@@ -246,7 +247,7 @@ public class ThymeleafAutoConfiguration {
 	}
 
 	@Configuration
-	@ConditionalOnWebApplication
+	@ConditionalOnWebApplication(type = Type.SERVLET)
 	protected static class ThymeleafResourceHandlingConfig {
 
 		@Bean
